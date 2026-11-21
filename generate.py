@@ -1,96 +1,214 @@
-#!/usr/bin/env python3
-"""Generate entry.png for make.fun news-image-20261121.
-Deterministic: fixed text, fixed fonts, no time, no random, no network.
-Run: python3 generate.py  -> writes entry.png (1024x1024, <1MiB).
-The submitted program (main.py) only copies entry.png to /output.
-Headlines verified 2026-11-21 from OneTurn / AP / CBS / NYT / Reuters /
-ISW / AFP / UN News listings.
+"""Render the 21 November 2026 world-news front page as a PNG.
+
+The page is a newspaper front page on warm newsprint: a masthead,
+one lead story, five more stories in a two-column grid, an "in brief"
+box, and a source line. Every mark on the page is drawn in code with
+Pillow. There are no photographs, no network calls, no clock reads
+and no random numbers, so the output is byte-identical on every run.
 """
+
 from PIL import Image, ImageDraw, ImageFont
 
-W = H = 1024
-BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-REG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+PAGE_W, PAGE_H = 1024, 1024
+MARGIN = 46
+CONTENT_W = PAGE_W - 2 * MARGIN
 
-def font(size, bold=True):
-    return ImageFont.truetype(BOLD if bold else REG, size)
+PAPER = (246, 241, 231)
+INK = (26, 26, 26)
+SOFT_INK = (58, 54, 46)
+RED = (176, 32, 28)
+GREY = (104, 98, 84)
+HAIR = (198, 190, 174)
 
-def wrap(draw, text, fnt, max_w):
-    words, lines, cur = text.split(), [], ""
-    for w in words:
-        t = (cur + " " + w).strip()
-        if draw.textlength(t, font=fnt) <= max_w:
-            cur = t
+FONT_DIR = "/usr/share/fonts/truetype/dejavu"
+
+LEAD = {
+    "kicker": "CONFLICT — UKRAINE AND POLAND",
+    "headline": "Russia's biggest November barrage hits Ukraine — and spills into Poland",
+    "deck": (
+        "Overnight on 19–20 November, 404 drones and 111 missiles struck across "
+        "Ukraine, killing at least eight people in Kyiv and damaging three bridges. "
+        "Two missiles and a drone came down in Poland."
+    ),
+}
+
+STATS = [
+    ("404", "drones fired"),
+    ("111", "missiles fired"),
+    ("8", "killed in Kyiv"),
+]
+
+STORIES = [
+    {
+        "kicker": "JUSTICE — THE HAGUE",
+        "headline": "World Court: Myanmar guilty of Rohingya genocide",
+        "body": "The 9–6 ruling, a first for the court, orders reparations and a safe, voluntary return.",
+    },
+    {
+        "kicker": "MARKETS — NEW YORK",
+        "headline": "AI sell-off drags the S&P 500 into correction",
+        "body": "US stocks fell 3.7% on Friday, days after Anthropic's debut valued it at $2 trillion.",
+    },
+    {
+        "kicker": "CLIMATE — ANTALYA",
+        "headline": "COP31 overruns as fossil fuels fall out of the deal",
+        "body": "The draft drops the pledge to move away from coal, oil and gas, and concedes 1.5°C will be overshot.",
+    },
+    {
+        "kicker": "DIPLOMACY — SHENZHEN",
+        "headline": "Trump, Xi and Putin sign a four-point peace declaration",
+        "body": "The first three-way meeting of the three leaders says nothing about Ukraine.",
+    },
+    {
+        "kicker": "HEALTH — LONDON",
+        "headline": "Trial pill clears pancreatic tumours in one in 12 patients",
+        "body": "Daraxonrasib made the cancer undetectable on scans in the trial.",
+    },
+]
+
+BRIEFS = [
+    "Kryvyi Rih: a Russian missile strike kills 2 and wounds 60.",
+    "Iran says it downed a US MQ-9 drone over the Strait of Hormuz.",
+]
+
+SOURCES = (
+    "Sources: Associated Press · The New York Times · One Turn · Majik Brief "
+    "— all facts verified 21 November 2026"
+)
+CREDIT = "Drawn entirely in code · Python + Pillow · No photographs"
+
+
+def _font(name, size):
+    return ImageFont.truetype(f"{FONT_DIR}/{name}", size)
+
+
+def _wrap(draw, text, font, width):
+    """Split text into lines that fit inside width."""
+    lines, current = [], ""
+    for word in text.split(" "):
+        trial = f"{current} {word}".strip()
+        if draw.textlength(trial, font=font) <= width:
+            current = trial
         else:
-            lines.append(cur); cur = w
-    if cur:
-        lines.append(cur)
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
     return lines
 
-def text_block(draw, x, y, text, fnt, color, max_w, lh=None):
-    lh = lh or int(fnt.size * 1.25)
-    for line in wrap(draw, text, fnt, max_w):
-        draw.text((x, y), line, font=fnt, fill=color)
-        y += lh
-    return y
 
-img = Image.new("RGB", (W, H), "#F7F2E6")
-d = ImageDraw.Draw(img)
+def _fit(draw, text, font, width, limit):
+    """Wrap text, cutting it to at most limit lines with an ellipsis."""
+    lines = _wrap(draw, text, font, width)
+    if len(lines) <= limit:
+        return lines
+    lines = lines[:limit]
+    while lines and draw.textlength(lines[-1] + "…", font=font) > width:
+        lines[-1] = lines[-1][:-1]
+    lines[-1] = lines[-1].rstrip() + "…"
+    return lines
 
-# ---- header ----
-d.rectangle([0, 0, W, 118], fill="#10243E")
-d.text((28, 22), "WORLD NEWS", font=font(62), fill="white")
-d.text((28, 88), "SATURDAY  •  THE DAY IN ONE PICTURE", font=font(20), fill="#F2C14E")
-d.text((700, 30), "21 NOV", font=font(52), fill="white")
-d.text((700, 88), "2026", font=font(28), fill="#F2C14E")
 
-# ---- main story: Russia's barrage on Ukraine ----
-d.rounded_rectangle([24, 138, 624, 560], radius=14, fill="white", outline="#10243E", width=3)
-d.text((44, 156), "KYIV  •  CONFLICT", font=font(20), fill="#B03A2E")
-text_block(d, 44, 186, "RUSSIA'S BIGGEST NOVEMBER BARRAGE", font(34), "#10243E", 540)
-text_block(d, 44, 262, "400+ drones and 110+ missiles hit Ukraine overnight; at least 8 killed in Kyiv.", font(24, False), "#222222", 540)
-# blast graphic: dark sky, red impact bursts, three bridges
-d.rectangle([44, 352, 604, 518], fill="#10243E")
-for cx, cy, r in [(140, 420, 26), (300, 392, 34), (470, 430, 24), (540, 384, 16)]:
-    for k in range(8):
-        import math
-        a = k * math.pi / 4
-        d.line([cx, cy, cx + int(r * 1.6 * math.cos(a)), cy + int(r * 1.6 * math.sin(a))], fill="#F2C14E", width=3)
-    d.ellipse([cx - r // 2, cy - r // 2, cx + r // 2, cy + r // 2], fill="#B03A2E")
-d.line([70, 488, 200, 488, 260, 462, 340, 488, 580, 488], fill="#9FC3E8", width=4)
-d.text((44, 528), "3 KYIV BRIDGES HIT  •  MISSILES LAND IN POLAND", font=font(18), fill="#10243E")
+def _masthead(draw):
+    title = _font("DejaVuSerif-Bold.ttf", 52)
+    draw.text((PAGE_W / 2, 42), "THE WORLD IN ONE IMAGE",
+              font=title, fill=INK, anchor="ma")
+    small = _font("DejaVuSans.ttf", 18)
+    draw.text((MARGIN, 114), "SATURDAY, 21 NOVEMBER 2026",
+              font=small, fill=GREY, anchor="la")
+    draw.text((PAGE_W - MARGIN, 114), "SIX STORIES · ONE PAGE",
+              font=small, fill=GREY, anchor="ra")
+    draw.line([(MARGIN, 144), (PAGE_W - MARGIN, 144)], fill=INK, width=3)
+    draw.line([(MARGIN, 150), (PAGE_W - MARGIN, 150)], fill=INK, width=1)
 
-# ---- right column: markets + climate ----
-d.rounded_rectangle([644, 138, 1000, 340], radius=14, fill="#10243E")
-d.text((664, 156), "NEW YORK  •  MARKETS", font=font(19), fill="#F2C14E")
-text_block(d, 664, 186, "AI sell-off: S&P 500 -3.7% into correction; Nasdaq -5.3%.", font(24), "white", 316)
-d.text((664, 296), "NVIDIA -14% ON SEC PROBE", font=font(19), fill="#9FC3E8")
-d.rounded_rectangle([644, 360, 1000, 560], radius=14, fill="white", outline="#10243E", width=3)
-d.text((664, 378), "ANTALYA  •  CLIMATE", font=font(19), fill="#B03A2E")
-text_block(d, 664, 406, "COP31 runs past deadline; draft drops fossil-fuel language.", font(23), "#10243E", 316)
-# falling chart
-pts = [(670, 500), (730, 510), (790, 506), (850, 520), (910, 532), (975, 545)]
-d.line(pts, fill="#B03A2E", width=5, joint="curve")
-for x, y in pts:
-    d.ellipse([x - 5, y - 5, x + 5, y + 5], fill="#B03A2E")
 
-# ---- bottom row: three stories ----
-panels = [
-    ("WASHINGTON  •  POLITICS", "Trump weighs new strikes on Iran as Israel presses for action.", "#B03A2E"),
-    ("THE HAGUE  •  JUSTICE", "Myanmar rejects World Court genocide ruling; Beijing backs it.", "#B03A2E"),
-    ("HEALTH  •  SCIENCE", "Pancreatic cancer pill makes tumours undetectable in 1 in 12 patients.", "#B03A2E"),
-]
-for i, (kicker, body, kc) in enumerate(panels):
-    x0 = 24 + i * 330
-    d.rounded_rectangle([x0, 580, x0 + 310, 820], radius=14, fill="white", outline="#10243E", width=3)
-    d.text((x0 + 18, 600), kicker, font=font(17), fill=kc)
-    text_block(d, x0 + 18, 634, body, font(23), "#10243E", 274)
-    d.rectangle([x0 + 18, 780, x0 + 292, 786], fill="#F2C14E")
+def _lead(draw):
+    kicker = _font("DejaVuSans-Bold.ttf", 19)
+    draw.text((MARGIN, 170), LEAD["kicker"], font=kicker, fill=RED, anchor="la")
+    head = _font("DejaVuSerif-Bold.ttf", 42)
+    lines = _fit(draw, LEAD["headline"], head, CONTENT_W, 2)
+    y = 198
+    for line in lines:
+        draw.text((MARGIN, y), line, font=head, fill=INK, anchor="la")
+        y += 50
+    deck = _font("DejaVuSans.ttf", 21)
+    for line in _fit(draw, LEAD["deck"], deck, CONTENT_W, 3):
+        draw.text((MARGIN, y + 6), line, font=deck, fill=SOFT_INK, anchor="la")
+        y += 29
+    return y + 6
 
-# ---- footer strip ----
-d.rectangle([0, 860, W, 1024], fill="#10243E")
-text_block(d, 28, 884, "Also: Gaza strikes kill 6  •  Ukraine's 'Bear Trap' frees 200 sq km  •  Nikkei -5.1%, Kospi -5.2%  •  Saudi coalition warns Hodeidah to evacuate", font(22), "white", 968)
-d.text((28, 972), "21 NOVEMBER 2026  •  SOURCES: AP / CBS / NYT / REUTERS / ISW / AFP  •  ONE IMAGE, ONE DAY", font=font(18), fill="#F2C14E")
 
-img.save("entry.png", "PNG", optimize=True)
-print("wrote entry.png", img.size)
+def _stats(draw, y):
+    number = _font("DejaVuSerif-Bold.ttf", 42)
+    label = _font("DejaVuSans.ttf", 16)
+    span = CONTENT_W / 3
+    for i, (value, text) in enumerate(STATS):
+        cx = MARGIN + span * (i + 0.5)
+        draw.text((cx, y), value, font=number, fill=RED, anchor="ma")
+        draw.text((cx, y + 50), text, font=label, fill=GREY, anchor="ma")
+        if i:
+            x = MARGIN + span * i
+            draw.line([(x, y + 4), (x, y + 66)], fill=HAIR, width=1)
+    return y + 72
+
+
+def _card(draw, x, y, w, story):
+    draw.line([(x, y), (x + w, y)], fill=INK, width=2)
+    kicker = _font("DejaVuSans-Bold.ttf", 16)
+    head = _font("DejaVuSerif-Bold.ttf", 24)
+    body = _font("DejaVuSans.ttf", 17)
+    draw.text((x, y + 10), story["kicker"], font=kicker, fill=RED, anchor="la")
+    ty = y + 34
+    for line in _fit(draw, story["headline"], head, w, 2):
+        draw.text((x, ty), line, font=head, fill=INK, anchor="la")
+        ty += 29
+    for line in _fit(draw, story["body"], body, w, 2):
+        draw.text((x, ty + 4), line, font=body, fill=SOFT_INK, anchor="la")
+        ty += 22
+
+
+def _briefs(draw, x, y, w):
+    draw.line([(x, y), (x + w, y)], fill=INK, width=2)
+    kicker = _font("DejaVuSans-Bold.ttf", 16)
+    body = _font("DejaVuSans.ttf", 17)
+    draw.text((x, y + 10), "IN BRIEF", font=kicker, fill=RED, anchor="la")
+    ty = y + 34
+    for item in BRIEFS:
+        for line in _fit(draw, "•  " + item, body, w, 2):
+            draw.text((x, ty), line, font=body, fill=SOFT_INK, anchor="la")
+            ty += 22
+        ty += 4
+
+
+def render():
+    """Build the front page and return it as a Pillow image."""
+    image = Image.new("RGB", (PAGE_W, PAGE_H), PAPER)
+    draw = ImageDraw.Draw(image)
+    draw.rectangle([24, 24, PAGE_W - 24, PAGE_H - 24], outline=INK, width=2)
+    _masthead(draw)
+    y = _lead(draw)
+    y = _stats(draw, y + 8)
+    draw.line([(MARGIN, y + 10), (PAGE_W - MARGIN, y + 10)], fill=HAIR, width=1)
+    grid_y = y + 24
+    col_w = (CONTENT_W - 28) // 2
+    row_h, row_gap = 128, 12
+    cells = [
+        (MARGIN, grid_y),
+        (MARGIN + col_w + 28, grid_y),
+        (MARGIN, grid_y + row_h + row_gap),
+        (MARGIN + col_w + 28, grid_y + row_h + row_gap),
+        (MARGIN, grid_y + 2 * (row_h + row_gap)),
+        (MARGIN + col_w + 28, grid_y + 2 * (row_h + row_gap)),
+    ]
+    for (cx, cy), story in zip(cells[:5], STORIES):
+        _card(draw, cx, cy, col_w, story)
+    _briefs(draw, cells[5][0], cells[5][1], col_w)
+    foot_y = grid_y + 3 * row_h + 2 * row_gap + 14
+    draw.line([(MARGIN, foot_y), (PAGE_W - MARGIN, foot_y)], fill=INK, width=1)
+    small = _font("DejaVuSans.ttf", 15)
+    draw.text((PAGE_W / 2, foot_y + 10), SOURCES,
+              font=small, fill=GREY, anchor="ma")
+    draw.text((PAGE_W / 2, foot_y + 32), CREDIT,
+              font=small, fill=GREY, anchor="ma")
+    return image

@@ -45,9 +45,9 @@ STORIES = [
         "body": "The 9–6 ruling, a first for the court, orders reparations and a safe, voluntary return.",
     },
     {
-        "kicker": "MARKETS — NEW YORK",
-        "headline": "AI sell-off drags the S&P 500 into correction",
-        "body": "US stocks fell 3.7% on Friday, days after Anthropic's debut valued it at $2 trillion.",
+        "kicker": "IRAN — WASHINGTON",
+        "headline": "Trump picks economic squeeze over new Iran strikes",
+        "body": "On Saturday, reports say he favours tightening the blockade — 130 days in — over new strikes.",
     },
     {
         "kicker": "CLIMATE — ANTALYA",
@@ -55,9 +55,9 @@ STORIES = [
         "body": "The draft drops the pledge to move away from coal, oil and gas, and concedes 1.5°C will be overshot.",
     },
     {
-        "kicker": "DIPLOMACY — SHENZHEN",
-        "headline": "Trump, Xi and Putin sign a four-point peace declaration",
-        "body": "The first three-way meeting of the three leaders says nothing about Ukraine.",
+        "kicker": "MYANMAR — NAYPYIDAW",
+        "headline": "Myanmar calls the genocide ruling 'unfair'",
+        "body": "A day after the verdict, its spokeswoman calls it unfair — the vote was 9–6, not unanimous.",
     },
     {
         "kicker": "HEALTH — LONDON",

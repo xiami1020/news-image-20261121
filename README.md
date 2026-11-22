@@ -15,12 +15,12 @@ line and letter is drawn in code.
   a drone come down in Poland.
 - **Justice — The Hague:** the World Court finds Myanmar committed genocide
   against the Rohingya, the first such ruling against a state.
-- **Markets — New York:** an AI sell-off drags the S&P 500 into correction,
-  days after Anthropic's $2 trillion market debut.
+- **Iran — Washington:** Trump leans to tightening the economic squeeze
+  on Iran over new strikes, as the naval blockade passes 130 days.
 - **Climate — Antalya:** COP31 runs past its deadline as fossil-fuel
   language falls out of the draft deal.
-- **Diplomacy — Shenzhen:** Trump, Xi and Putin sign a four-point peace
-  declaration that says nothing about Ukraine.
+- **Myanmar — Naypyidaw:** Myanmar rejects the World Court's genocide
+  ruling as "unfair", noting the 9–6 vote was not unanimous.
 - **Health — London:** a trial pill, daraxonrasib, makes pancreatic tumours
   undetectable in one in 12 patients.
 
